@@ -1,5 +1,8 @@
 package ru.ryasnov.neoflexcalculator.service;
 
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.ryasnov.neoflexcalculator.entities.Holidays;
 import ru.ryasnov.neoflexcalculator.entities.Hollidays;
@@ -11,21 +14,23 @@ import java.time.Month;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class CalculatorSrviceImplementation implements CalculatorService {
+    private final DaysOfRestService daysOfRestService;
     @Override
     public Integer calculating(LocalDate dateOfStart, Integer countOfDays, Integer averageSalary) throws CalcException {
         int tmp = countOfDays.intValue();
-        Integer pay = exceptionsCheck(dateOfStart, countOfDays, averageSalary);
+        Integer pay = fieldsCheck(dateOfStart, countOfDays, averageSalary);
         if(pay!= null) return pay;
 
         for(int i = tmp; i>0; i--){
-            if(checkWeekends(dateOfStart)||checkHolidays(dateOfStart)) countOfDays--;
+            if(daysOfRestService.checkWeekends(dateOfStart)||daysOfRestService.checkHolidays(dateOfStart)) countOfDays--;
             dateOfStart =dateOfStart.plusDays(1);
         }
         return paymentCalculating(countOfDays, averageSalary);
     }
 
-     Integer exceptionsCheck(LocalDate dateOfStart, Integer countOfDays, Integer averageSalary) throws CalcException {
+     Integer fieldsCheck(LocalDate dateOfStart, Integer countOfDays, Integer averageSalary) throws CalcException {
         if(countOfDays<0) throw new CalcException("Sorry, the new ones set the count of days less than zero");
         if(averageSalary<0) throw new CalcException("Sorry, the new ones set the value of salary less than zero");
         if(dateOfStart==null) return paymentCalculating(countOfDays, averageSalary);
@@ -36,36 +41,4 @@ public class CalculatorSrviceImplementation implements CalculatorService {
         return Integer.valueOf((int)(averageSalary/29.3 * countOfDays));
     }
 
-     boolean checkWeekends(LocalDate date){
-        DayOfWeek day = date.getDayOfWeek();
-        return day.equals(DayOfWeek.SUNDAY) || day.equals(DayOfWeek.SATURDAY);
-    }
-
-     boolean checkHolidays(LocalDate date){
-        Month month = date.getMonth();
-        int day = date.getDayOfMonth();
-        Holidays holidays = new Holidays();
-        for(Map.Entry<Integer,Month> holiday: holidays.getHOLIDAYS().entrySet()){
-            Integer holidayDay = holiday.getKey();
-            Month holidayMonth = holiday.getValue();
-            if(holidayMonth.equals(month)&&holidayDay.equals(day)) return true;
-        }
-        return false;
-    }
-    //Второй способ расчета
-     boolean checkHolidays2(LocalDate date){
-        Month month = date.getMonth();
-        int day = date.getDayOfMonth();
-        boolean res = true;
-        for(Hollidays holiday: Hollidays.values()){
-            if(holiday.getDateStart().getMonth().equals(month)){
-                if(holiday.getDateEnd()!=null && day>=holiday.getDateStart().getDayOfMonth()) return true;
-                else if(day==holiday.getDateStart().getDayOfMonth()) return true;
-            }
-            else if(holiday.getDateEnd() != null){
-                if(holiday.getDateEnd().getMonth().equals(month) && day<=holiday.getDateEnd().getDayOfMonth()) return true;
-            }
-        }
-        return false;
-    }
 }
